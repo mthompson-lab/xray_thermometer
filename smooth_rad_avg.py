@@ -33,14 +33,14 @@ def radial_cbf_smooth(filename):
         radial_avg = tbin / nr
     radial_avg_smooth = median_filter(radial_avg, 50)
     print("detector distance = {}".format(detector_distance))
-    plt.plot(radial_avg_smooth)
-    plt.savefig("smoothed_rad_avg.png", dpi=300)
+    # plt.plot(radial_avg_smooth)
+    # plt.savefig("smoothed_rad_avg.png", dpi=300)
     
     return radial_avg
 
 
-from sys import argv
+# from sys import argv
 
-script, filename = argv
-radial_cbf_smooth(filename)
+# script, filename = argv
+# radial_cbf_smooth(filename)
 
