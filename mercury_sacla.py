@@ -4,39 +4,23 @@ import pandas
 import StringIO
 import numpy as np
 from sys import argv
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from glob import glob
 from time import clock
 from numpy.linalg import svd
-import matplotlib
-matplotlib.use("Agg")
-from matplotlib import pyplot as plt
 
 
-directs = argv[1:]
-
-directories = [str(direct)+"003_*/out/debug" for direct in directs] #003 specifies trial - rg Aaron rungroup with latest metrology - for spot finding
-hitlist = set(line.strip() for line in subprocess.check_output("sh generate_hitlist.sh {}".format(directories[0]), shell=True).split())
-for dir_x in directories[1:]:
-   hitlist.update(line.strip() for line in subprocess.check_output("sh generate_hitlist.sh {}".format(dir_x), shell=True).split())
-print(hitlist)
-
-g_directs = [str(direct)+"002_*/stdout" for direct in directs] #002 specifies trial - Aaron run group with latest metrology - for radial averaging
-#run_numb = g_direct.split('/')[-3] 
-
-from glob import glob
-def logfiles(directory):
-    log_list = glob(directory+"/*log_rank*")
+#script, in_dir = argv
+list_of_filenames = argv[1:]
+def filelist(directory):
+    log_list = glob(directory+"*txt")
     print log_list
     return log_list
 
-list_of_filenames = []
-for g_dir in g_directs:
-    list_of_filenames.extend(logfiles(g_dir))
 
 start = clock()
 
-n = 1376
+n = 1189
 i = 0
 # filename = '28565-dark1.txt'
 #list_of_filenames = ['28570-dark1.txt', '28570-dark2.txt','28570-light.txt']
@@ -45,48 +29,40 @@ i = 0
 #list_of_filenames = ['./28566-dark1.txt', './28566-dark2.txt', './28566-light.txt', './28567-dark1.txt', './28567-dark2.txt', './28567-light.txt', './28568-dark1.txt', './28568-dark2.txt', './28568-light.txt', './28569-dark1.txt', './28569-dark2.txt', './28569-light.txt', '28570-dark1.txt', '28570-dark2.txt','28570-light.txt']
 panda_dict = {}
 ordered_keylist = []
-#n = 1376
-#i = 0
-#for filename in list_of_filenames:
-#  with open(filename) as f:
-  #  header = list(islice(f, 2))
- #   while True:
-  #      next_n_lines = list(islice(f, n))
- #       i +=1
-#	if len(next_n_lines)<10:
-        #  break
-  #      print next_n_lines[1]   
-       # if next_n_lines[1].split()[1] in hitlist:
-        #if next_n_lines[1].split()[1] not in hitlist:
-        #  print(next_n_lines)
-        #  print map(str.split, next_n_lines[4:])
-        #  dataset = pandas.DataFrame(map(str.split, next_n_lines[6:]), columns = ["q", "I", "sigI"], dtype=float)
 for filename in list_of_filenames:
+	if 'dark' in filename:
 		with open(filename) as f:
-		    header = list(islice(f, 2))
-		    #print header
+		    # header = list(islice(f, 16))
+		    # print header
 		    while True:
 		        next_n_lines = list(islice(f, n))
 		        i +=1
-			if len(next_n_lines)<10:
-			    break
-		        #print next_n_lines[1]
-		        #print len(map(str.split, next_n_lines[6:]))
-			# if i>1:
-		        try:
-				if next_n_lines[1].split()[1] in hitlist:
-					dataset = pandas.DataFrame(map(str.split, next_n_lines[6:]), columns = ["q", "I", "sigI"], dtype=float)
-		        		panda_dict[i] = [dataset, "dark"]
-		        		ordered_keylist.append(i)
-				elif next_n_lines[1].split()[1] not in hitlist:
-					print("{} not indexed".format(i))
-		        except:
-				print("{} failed".format(i))
-			# 	break
+		        # print next_n_lines[16:-1]
+		        # if i>1:
+		        dataset = pandas.DataFrame(map(str.split, next_n_lines[17:-1]), columns = ["q", "I", "sigI"], dtype=float)
+		        panda_dict[i] = [dataset, "dark"]
+		        ordered_keylist.append(i)
+		        # 	break
 		        	
-		        #if len(next_n_lines)<10:
-		         #   break
+		        if len(next_n_lines)<10:
+		            break
 
+	elif 'light' in filename:
+		with open(filename) as f:
+		    # header = list(islice(f, 16))
+		    # print header
+		    while True:
+		        next_n_lines = list(islice(f, n))
+		        i +=1
+		        # print next_n_lines[16:-1]
+		        # if i>1:
+		        dataset = pandas.DataFrame(map(str.split, next_n_lines[17:-1]), columns = ["q", "I", "sigI"], dtype=float)
+		        panda_dict[i] = [dataset, "light"]
+		        ordered_keylist.append(i)
+		        # 	break
+		        	
+		        if len(next_n_lines)<10:
+		            break
 		  #      print next_n_lines[1]   
 		        # if next_n_lines[1].split()[1] in hitlist:
 		        #if next_n_lines[1].split()[1] not in hitlist:
@@ -159,7 +135,7 @@ plt.legend()
 #fig.savefig("{}_svd.png".format(run_numb))
 fig.savefig("singular_vectors.png", dpi=300)
 
-#np.save("time_dep_vector", v[2])
+np.save("time_dep_vector", v[2])
 
 fig2, ax2 = plt.subplots()
 i = 0
@@ -168,7 +144,7 @@ for vector in u.T[0:8]:
 	# ax.plot(range(len(vectors)), [value+i for value in vector], "-")
 	# x = [i*0.025 for i in range(len(vector))]	
 	ax2.scatter(dark, vector[dark]+i*.3, s=1, label = "v{} dark".format(i))
-	#ax2.scatter(light, vector[light]+i*.3, s=1, label = "v{} light".format(i))
+	ax2.scatter(light, vector[light]+i*.3, s=1, label = "v{} light".format(i))
 	i+=1
 plt.legend()
 	
@@ -182,16 +158,16 @@ fig3.savefig("singular_values.png")
 	# print i
 	# print ordered_keylist
 
-#fig4, ax4 = plt.subplots()
-#i = 0
-#for vector in u.T[0:8]:
+fig4, ax4 = plt.subplots()
+i = 0
+for vector in u.T[0:8]:
 	# print vector
 	# ax.plot(range(len(vectors)), [value+i for value in vector], "-")
 	# x = [i*0.025 for i in range(len(vector))]	
-	#ax4.hist(vector[dark], 500, color='blue', alpha=0.5, label = "v{} dark".format(i))
-	#ax4.hist(vector[light], 500, color='red', alpha=0.5, label = "v{} light".format(i))
-	#plt.legend()
-	#fig4.savefig("v{}_distribution.png".format(i), dpi=300)
-	#i+=1
-	#ax4.cla()
+	ax4.hist(vector[dark], 500, color='blue', alpha=0.5, label = "v{} dark".format(i))
+	ax4.hist(vector[light], 500, color='red', alpha=0.5, label = "v{} light".format(i))
+	plt.legend()
+	fig4.savefig("v{}_distribution.png".format(i), dpi=300)
+	i+=1
+	ax4.cla()
 	
