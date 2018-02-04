@@ -12,16 +12,20 @@ import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
+indexed_shots_only = argv[1]
+if indexed_shots_only == "indexed":
+	indexed = True
+else:
+	indexed = False
+directs = argv[2:]
 
-directs = argv[1:]
-
-directories = [str(direct)+"003_*/out/debug" for direct in directs] #003 specifies trial - rg Aaron rungroup with latest metrology - for spot finding
-hitlist = set(line.strip() for line in subprocess.check_output("sh generate_hitlist.sh {}".format(directories[0]), shell=True).split())
+directories = [str(direct)+"002_*/out/debug" for direct in directs] #003 specifies trial - rg Aaron rungroup with latest metrology - for spot finding
+hitlist = set(line.strip() for line in subprocess.check_output("sh /reg/d/psdm/mfx/mfxls2116/scratch/common/xray_thermometer/generate_hitlist.sh {}".format(directories[0]), shell=True).split())
 for dir_x in directories[1:]:
-   hitlist.update(line.strip() for line in subprocess.check_output("sh generate_hitlist.sh {}".format(dir_x), shell=True).split())
+   hitlist.update(line.strip() for line in subprocess.check_output("sh /reg/d/psdm/mfx/mfxls2116/scratch/common/xray_thermometer/generate_hitlist.sh {}".format(dir_x), shell=True).split())
 print(hitlist)
 
-g_directs = [str(direct)+"002_*/stdout" for direct in directs] #002 specifies trial - Aaron run group with latest metrology - for radial averaging
+g_directs = [str(direct)+"003_*/stdout" for direct in directs] #002 specifies trial - Aaron run group with latest metrology - for radial averaging
 #run_numb = g_direct.split('/')[-3] 
 
 from glob import glob
@@ -36,7 +40,7 @@ for g_dir in g_directs:
 
 start = clock()
 
-n = 1376
+n = 1381
 i = 0
 # filename = '28565-dark1.txt'
 #list_of_filenames = ['28570-dark1.txt', '28570-dark2.txt','28570-light.txt']
@@ -63,7 +67,7 @@ ordered_keylist = []
         #  dataset = pandas.DataFrame(map(str.split, next_n_lines[6:]), columns = ["q", "I", "sigI"], dtype=float)
 for filename in list_of_filenames:
 		with open(filename) as f:
-		    header = list(islice(f, 2))
+		    header = list(islice(f,2))
 		    #print header
 		    while True:
 		        next_n_lines = list(islice(f, n))
@@ -74,12 +78,19 @@ for filename in list_of_filenames:
 		        #print len(map(str.split, next_n_lines[6:]))
 			# if i>1:
 		        try:
-				if next_n_lines[1].split()[1] in hitlist:
-					dataset = pandas.DataFrame(map(str.split, next_n_lines[6:]), columns = ["q", "I", "sigI"], dtype=float)
-		        		panda_dict[i] = [dataset, "dark"]
-		        		ordered_keylist.append(i)
-				elif next_n_lines[1].split()[1] not in hitlist:
-					print("{} not indexed".format(i))
+				if indexed == True: 
+					if next_n_lines[3].split()[1] in hitlist:
+						dataset = pandas.DataFrame(map(str.split, next_n_lines[8:-2]), columns = ["q", "I", "sigI"], dtype=float)
+		        			panda_dict[i] = [dataset, "dark"]
+		        			ordered_keylist.append(i)
+						print("{} succeeded!".format(i))
+					elif next_n_lines[1].split()[1] not in hitlist:
+						print("{} not indexed".format(i))
+				elif indexed == False:
+						dataset = pandas.DataFrame(map(str.split, next_n_lines[8:-2]), columns = ["q", "I", "sigI"], dtype=float)
+                                                panda_dict[i] = [dataset, "dark"]
+                                                ordered_keylist.append(i)
+                                                print("{} succeeded!".format(i))
 		        except:
 				print("{} failed".format(i))
 			# 	break
