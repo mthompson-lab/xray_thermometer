@@ -12,12 +12,20 @@ import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
+
+
+cutoff = 400
+
 indexed_shots_only = argv[1]
 if indexed_shots_only == "indexed":
 	indexed = True
 else:
 	indexed = False
 directs = argv[2:]
+
+light_dark_map = {"/r0016/": "light", "/r0034/": "light", "/r0039/": "dark", "/r0040/": "dark", "/r0044/": "light", "/r0045/": "light", "/r0046/": "light", "/r0047/": "dark", "/r0048/": "dark", "/r0049/": "dark", "/r0066/": "light", "/r0067/": "light", "/r0068/": "light", "/r0072/": "dark", "/r0073/": "light", "/r0074/": "light", "/r0075/": "light", "/r0076/": "dark", "/r0077/": "light", "/r0078/": "dark", "/r0079/": "light", "/r0080/": "dark", "/r0081/": "light", "/r0082/": "dark", "/r0083/": "light", "/r0084/": "dark", "/r0085/": "light", "/r0086/": "light", "/r0087/": "dark"}
+
+
 
 directories = [str(direct)+"002_*/out/debug" for direct in directs] #003 specifies trial - rg Aaron rungroup with latest metrology - for spot finding
 hitlist = set(line.strip() for line in subprocess.check_output("sh /reg/d/psdm/mfx/mfxls2116/scratch/common/xray_thermometer/generate_hitlist.sh {}".format(directories[0]), shell=True).split())
@@ -79,19 +87,25 @@ for filename in list_of_filenames:
 			# if i>1:
 		        try:
 				if indexed == True: 
+					#print "using indexed images only"
 					if next_n_lines[3].split()[1] in hitlist:
 						dataset = pandas.DataFrame(map(str.split, next_n_lines[8:-2]), columns = ["q", "I", "sigI"], dtype=float)
-		        			panda_dict[i] = [dataset, "dark"]
+		        			for item in light_dark_map:
+							if item in filename:
+								panda_dict[i] = [dataset, light_dark_map[item]]
 		        			ordered_keylist.append(i)
-						print("{} succeeded!".format(i))
+						print("{} succeeded, and was '{}'".format(i, panda_dict[i][1]))
 					elif next_n_lines[1].split()[1] not in hitlist:
 						print("{} not indexed".format(i))
 				elif indexed == False:
+						#print "using all images"
 						dataset = pandas.DataFrame(map(str.split, next_n_lines[8:-2]), columns = ["q", "I", "sigI"], dtype=float)
-                                                panda_dict[i] = [dataset, "dark"]
-                                                ordered_keylist.append(i)
-                                                print("{} succeeded!".format(i))
-		        except:
+                                                for item in light_dark_map:
+                                                        if item in filename:
+                                                                panda_dict[i] = [dataset, light_dark_map[item]]
+						ordered_keylist.append(i)
+						print("{} succeeded, and was '{}'".format(i, panda_dict[i][1]))
+			except:	
 				print("{} failed".format(i))
 			# 	break
 		        	
@@ -137,7 +151,7 @@ for key in panda_dict:
 		temp3 = np.divide(temp2,temp2.max())
 		# print temp3.shape
 		ax0.plot(x, temp3)
-		full_list.append(temp3[400:])
+		full_list.append(temp3[cutoff:])
 		lab_list.append(lab)
 	except:
 		print "{} failed".format(key)
@@ -154,6 +168,11 @@ for i, val in enumerate(lab_list):
 dark = np.array(dark_coor)
 light = np.array(light_coor)
 
+#dark_vecs = np.array([full_list[d] for d in dark])
+#light_vecs = np.array([full_list[l] for l in light])
+#avg_dark = np.average(dark_vecs,axis=0)
+#diff = light_vecs - avg_dark
+
 end = clock()
 print("calculation finished in {} seconds").format(end-start)
 print("vectors processed = {}").format(len(full_list))
@@ -161,10 +180,12 @@ print("vectors processed = {}").format(len(full_list))
 u,s,v = svd(full_list, full_matrices=False)
 fig, ax = plt.subplots()
 i = 0
+#print("xx shape = {}".format(xx.shape))
 for vector in v[0:8]:
 	# print vector
+	#print("vector shape = {}".format(vector.shape))
 	# ax.plot(range(len(vectors)), [value+i for value in vector], "-")
-	ax.plot(vector+i*0.1, "-", label = "v{}".format(i))
+	ax.plot(x[cutoff:],vector+i*0.1, "-", label = "v{}".format(i))
 	i+=1
 plt.legend()
 #fig.savefig("{}_svd.png".format(run_numb))
@@ -178,13 +199,14 @@ for vector in u.T[0:8]:
 	# print vector
 	# ax.plot(range(len(vectors)), [value+i for value in vector], "-")
 	# x = [i*0.025 for i in range(len(vector))]	
-	ax2.scatter(dark, vector[dark]+i*.3, s=1, label = "v{} dark".format(i))
-	#ax2.scatter(light, vector[light]+i*.3, s=1, label = "v{} light".format(i))
+	ax2.scatter(dark, vector[dark]+i*.3, color='blue', edgecolors="none", s=2, label = "v{} dark".format(i))
+	ax2.scatter(light, vector[light]+i*.3, marker='+', color='red', edgecolors="none", s=2, label = "v{} light".format(i))
 	i+=1
-plt.legend()
+#plt.legend()
 	
 #fig2.savefig("{}_result.png".format(run_numb))
 fig2.savefig("vector_per_image.png", dpi=300)
+fig2.set_figwidth(15)
 fig3, ax3= plt.subplots()
 ax3.plot([np.log(i) for i in s][0:8], "-")
 #fig3.savefig("{}_singular_values.png".format(run_numb))
@@ -192,17 +214,35 @@ fig3.savefig("singular_values.png")
 #plt.show(figsize(10,10),dpi=300)
 	# print i
 	# print ordered_keylist
-
-#fig4, ax4 = plt.subplots()
-#i = 0
-#for vector in u.T[0:8]:
+#fig2.show()
+fig4, ax4 = plt.subplots()
+i = 0
+for vector in u.T[0:8]:
 	# print vector
 	# ax.plot(range(len(vectors)), [value+i for value in vector], "-")
 	# x = [i*0.025 for i in range(len(vector))]	
-	#ax4.hist(vector[dark], 500, color='blue', alpha=0.5, label = "v{} dark".format(i))
-	#ax4.hist(vector[light], 500, color='red', alpha=0.5, label = "v{} light".format(i))
-	#plt.legend()
-	#fig4.savefig("v{}_distribution.png".format(i), dpi=300)
-	#i+=1
-	#ax4.cla()
+	ax4.hist(vector[dark], 500, color='blue', alpha=0.5, label = "v{} dark".format(i))
+	ax4.hist(vector[light], 500, color='red', alpha=0.5, label = "v{} light".format(i))
+	plt.legend()
+	fig4.savefig("v{}_distribution.png".format(i), dpi=300)
+	i+=1
+	ax4.cla()
 	
+
+#u_d,s_d,v_d = svd(diff, full_matrices=False)
+
+#fig5, ax5 = plt.subplots()
+#i = 0
+#for vector in v_d[0:8]:
+        # print vector
+        # ax.plot(range(len(vectors)), [value+i for value in vector], "-")
+        #ax.plot(vector+i*0.1, "-", label = "v{}".format(i))
+        #i+=1
+#plt.legend()
+#fig.savefig("{}_svd.png".format(run_numb))
+#fig5.savefig("singular_diff_vectors.png", dpi=300)
+
+#fig6, ax6 = plt.subplots()
+#ax6.plot([np.log(i) for i in s_d][0:8], "-")
+#fig3.savefig("{}_singular_values.png".format(run_numb))
+#fig6.savefig("singular_diff_values.png")
